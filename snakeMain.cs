@@ -1,195 +1,247 @@
-﻿using Point = ( int x, int y);
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
-public class cell : Div
+// Замените using alias на struct
+public struct Point
 {
-    private readonly Point p:
+    public int x;
+    public int y;
+    
+    public Point(int x, int y)
+    {
+        this.x = x;
+        this.y = y;
+    }
+}
+
+public enum Direction { Left, Right, Up, Down }
+
+public class Cell : Div
+{
+    private readonly Point p;
     private readonly List<(Point p, Direction d)> snake;
     private readonly Point food;
 
-    public cell(Point p, HashSet<Point> seen, List<(Point p, Direction d)> snake, Point food)
+    public Cell(Point p, HashSet<Point> seen, List<(Point p, Direction d)> snake, Point food)
     {
         this.p = p;
         this.snake = snake;
         this.food = food;
 
-        this.HtmlElement.InnerText = seen.Contains(p) ? "*" : "";
-
-        this.CssClass = "cell";
-        this.Styles["background-color"] =1
-            IsSnake ? (IsSnake ? "green" : "blue") : IsFood ? "pink" : IsBorder ? "gray" : "silver";
+        // В реальном приложении нужно будет адаптировать отрисовку
+        Console.Write(seen.Contains(p) ? "*" : " ");
     }
 
-    public bool IsSnake => snake.First().p == p();
-    public bool IsFood => p == food;
-    public bool IsSnake => snake.any(y => y.p == p);
+    public bool IsHead => snake.First().p.Equals(p);
+    public bool IsFood => p.Equals(food);
+    public bool IsSnakeBody => snake.Any(y => y.p.Equals(p));
     public bool IsBorder => p.x == 0 || p.x == 20 || p.y == 0 || p.y == 20;
 }
 
-public enum Direction {Left, Right, Up, Down};
-
-static object _lock = new();
-
-async Task Main()
+// Временная заглушка для Div (нужно будет реализовать GUI)
+public class Div
 {
-    Util.HtmlHead.AddStyles(css);
+    public List<object> Children { get; } = new();
+    public string CssClass { get; set; }
+    public Dictionary<string, string> Styles { get; } = new();
+}
+
+public class Button
+{
+    public event EventHandler Click;
     
-    bool hasFood = false;
-    bool isWallCollision = false;
-
-    DumpContainer board = new();
-    board.Dump("board");
-
-    Random r = new();
-
-    List<(Point Point, Direction d, Queue<(Point Point, Direction d)> moves)> snake =
-        [(new Point(10, 10), Direction.Right, new Queue<(Point p, Direction d)>())];
-    Point food = new(r.Next(1, 19), r.Next(1. 19));
-
-    Button left = new();
-    left.HtmlElement.InnerText = nameof(left);
-    left.Click += (o, e) =>
+    public void SimulateClick()
     {
-        lock (_lock)
-        {
-            snake.ForEach(snk => snk.moves.Enqueue((snake.First().p, Direction.Left)));
-        }
-    };
-    
-    Button right = new();
-    right.HtmlElement.InnerText = nameof(right);
-    right.Click += (o, e) =>
-    {
-        lock (_lock)
-        {
-            snake.ForEach(snk => snk.moves.Enqueue((snake.First().p, Direction.Right)));
-        }
-    };
-        
-    Button up = new();
-    up.HtmlElement.InnerText = nameof(up);
-    up.Click += (o, e) =>
-    {
-        lock (_lock)
-        {
-            snake.ForEach(snk => snk.moves.Enqueue((snake.First().p, Direction.Up)));
-        }
-    };
-        
-    Button down = new;
-    down.HtmlElement.InnerText = nameof(down);
-    down.Click += (o, e) =>
-    {
-        lock (_lock)
-        {
-            snake.ForEach(snk => snk.moves.Enqueue((snake.First().p, Direction.Down)));
-        }
-    };
-
-    bool isPaused = false;
-    Button pause = new();
-    pause.HtmlElemtn.InnerText = nameof(pause);
-    pause.Click += (o, e) => { isPaused = !isPaused; };
-    
-    
-    new { left, right, up, down, pause };.DumpContainer("controls");
-
-    HashSet<Point> seen = new();
-
-    int refreshMilliseconds = 700;
-
-    while (true)
-    {
-        if (isPaused)
-        {
-            continue;
-        }
-
-        seen = snake.Select(x => x.p).Concat(seen).Distinct().ToHashSet();
-
-        Div container = new();
-        container.Children.Add(new Div(new Label($"Score: {snake.Count - 1}")));
-        container.Children.Add(new Div(new Label($"Speed: {refreshMilliseconds}")));
-
-        Div div = new();
-        div.CssClass = "grid-container";
-        for (int i = 0; i < 21: i++)
-        {
-            for (int j = 0; j < 21; j++)
-            {
-                Point p = new Point(i, j);
-                cell c = new cell(p, seen, snake.Select(x => (x.p, x.d)).ToList(), food);
-                div.Children.Add(c);
-            }
-        }
-
-        container.Children.Add(div);
-        board.Content = container;
-
-        await Task.Delay(refreshMilliseconds);
-
-        lock (_lock)
-        {
-            var tail = snake.Last();
-            
-            snake = snake.Select((snk, i) => (snk.moves.Any() && snk.moves.Peek().p == snk.p ? snk.moves.Dequeue().d : snk.d) switch
-            {
-                Direction.Left => (new Point(snk.p.x, snk.p.y - 1), Direction.Left, snk.moves),
-                Direction.Right => (new Point(snk.p.x, snk.p.y + 1), Direction.Right, snk.moves),
-                Direction.Up => (new Point(snk.p.x - 1, snk.p.y), Direction.Up, snk.moves),
-                Direction.Down => (new Point(snk.p.x + 1 , snk.p.y), Direction.Down, snk.moves),
-                _ => throw new InvalidOperationException("shouldn't happen")
-            }).ToList();
-            
-            var head - snake.First();
-
-            isWallCollision = head.p.x == 0 || head.p.x == 20 || head.p.y == 0 || head.p.y == 20;
-            if (isWallCollision)
-            {
-                "hit wall".Dump();
-                break;
-            }
-
-            bool isSelfCollision = snake.Skip(1).Select(x => x.p).ToHashSet().Contains(head.p);
-            if (isSelfCollision)
-            {
-                "self collision".Dump();
-                break;
-            }
-            
-            hasFood = head.p == food;
-            if (hasFood)
-            {
-                refreshMilliseconds -= 25;
-                food = new(r.Next(1, 19), r.Next(1, 19));
-                "got food".Dump();
-                snake = snake.Append((tail.p, snake.Last().d, new Queue<(Point p, Direction d)>(snake.Last().moves)))
-                    .ToList();
-            }
-
-        }
-        
+        Click?.Invoke(this, EventArgs.Empty);
     }
-    "game over".Dump();
 }
 
-private string css =
-$"""
-.grid-container {
-    display: grid;
-    grid-template-columns: repeat(21, 20px);
-    grid-template-rows: repeat(21, 20px);
-    width: 420px;
-    height: 420px;
-    border: 2px solid #000;
-    background-color: #fff;
+public class Label
+{
+    public string Text { get; }
+    
+    public Label(string text)
+    {
+        Text = text;
+    }
 }
 
-.cell {
-   width: 20px;
-   height: 20px;
-   box-sizing: border-box;
-   border: 1px solid #ccc;
-   background-color: transparent;
-   text-align: center; 
+public class DumpContainer
+{
+    public object Content { get; set; }
+    
+    public void Dump(string name)
+    {
+        Console.WriteLine($"{name}: {Content}");
+    }
 }
-""";
+
+public static class Util
+{
+    public static Div HtmlHead { get; } = new();
+}
+
+class Program
+{
+    static object _lock = new object();
+
+    static async Task Main(string[] args)
+    {
+        await RunGame();
+    }
+
+    static async Task RunGame()
+    {
+        bool hasFood = false;
+        bool isWallCollision = false;
+
+        DumpContainer board = new();
+        board.Dump("board");
+
+        Random r = new();
+
+        List<(Point Point, Direction d, Queue<(Point Point, Direction d)> moves)> snake =
+            new List<(Point, Direction, Queue<(Point, Direction)>)>
+            {
+                (new Point(10, 10), Direction.Right, new Queue<(Point, Direction)>())
+            };
+        
+        Point food = new Point(r.Next(1, 19), r.Next(1, 19));
+
+        // Создание кнопок (в консольной версии они будут виртуальными)
+        Button left = new Button();
+        Button right = new Button();
+        Button up = new Button();
+        Button down = new Button();
+        Button pause = new Button();
+
+        bool isPaused = false;
+        pause.Click += (o, e) => { isPaused = !isPaused; };
+
+        HashSet<Point> seen = new HashSet<Point>();
+        int refreshMilliseconds = 700;
+
+        // Для консольной версии - эмуляция управления
+        _ = Task.Run(async () =>
+        {
+            while (true)
+            {
+                var key = Console.ReadKey(true).Key;
+                lock (_lock)
+                {
+                    switch (key)
+                    {
+                        case ConsoleKey.LeftArrow:
+                            snake.ForEach(snk => snk.moves.Enqueue((snake.First().Point, Direction.Left)));
+                            break;
+                        case ConsoleKey.RightArrow:
+                            snake.ForEach(snk => snk.moves.Enqueue((snake.First().Point, Direction.Right)));
+                            break;
+                        case ConsoleKey.UpArrow:
+                            snake.ForEach(snk => snk.moves.Enqueue((snake.First().Point, Direction.Up)));
+                            break;
+                        case ConsoleKey.DownArrow:
+                            snake.ForEach(snk => snk.moves.Enqueue((snake.First().Point, Direction.Down)));
+                            break;
+                        case ConsoleKey.Spacebar:
+                            isPaused = !isPaused;
+                            break;
+                    }
+                }
+                await Task.Delay(50);
+            }
+        });
+
+        while (true)
+        {
+            if (isPaused)
+            {
+                await Task.Delay(100);
+                continue;
+            }
+
+            seen = snake.Select(x => x.Point).Concat(seen).Distinct().ToHashSet();
+
+            // Отрисовка игрового поля в консоли
+            Console.Clear();
+            Console.WriteLine($"Score: {snake.Count - 1}");
+            Console.WriteLine($"Speed: {refreshMilliseconds}");
+            Console.WriteLine("Controls: Arrow keys to move, Space to pause");
+
+            for (int i = 0; i < 21; i++)
+            {
+                for (int j = 0; j < 21; j++)
+                {
+                    Point p = new Point(i, j);
+                    char cellChar = ' ';
+                    
+                    if (snake.First().Point.Equals(p)) cellChar = 'H'; // Голова
+                    else if (snake.Skip(1).Any(s => s.Point.Equals(p))) cellChar = 'S'; // Тело
+                    else if (food.Equals(p)) cellChar = 'F'; // Еда
+                    else if (i == 0 || i == 20 || j == 0 || j == 20) cellChar = '#'; // Граница
+                    else if (seen.Contains(p)) cellChar = '.'; // Посещенные клетки
+                    
+                    Console.Write(cellChar);
+                }
+                Console.WriteLine();
+            }
+
+            await Task.Delay(refreshMilliseconds);
+
+            lock (_lock)
+            {
+                var tail = snake.Last();
+                
+                snake = snake.Select((snk, i) =>
+                {
+                    Direction newDirection = snk.moves.Any() && snk.moves.Peek().Point.Equals(snk.Point) 
+                        ? snk.moves.Dequeue().d 
+                        : snk.d;
+                    
+                    Point newPoint = newDirection switch
+                    {
+                        Direction.Left => new Point(snk.Point.x, snk.Point.y - 1),
+                        Direction.Right => new Point(snk.Point.x, snk.Point.y + 1),
+                        Direction.Up => new Point(snk.Point.x - 1, snk.Point.y),
+                        Direction.Down => new Point(snk.Point.x + 1, snk.Point.y),
+                        _ => throw new InvalidOperationException("shouldn't happen")
+                    };
+                    
+                    return (newPoint, newDirection, snk.moves);
+                }).ToList();
+                
+                var head = snake.First();
+
+                isWallCollision = head.Point.x == 0 || head.Point.x == 20 || head.Point.y == 0 || head.Point.y == 20;
+                if (isWallCollision)
+                {
+                    Console.WriteLine("hit wall");
+                    break;
+                }
+
+                bool isSelfCollision = snake.Skip(1).Select(x => x.Point).ToHashSet().Contains(head.Point);
+                if (isSelfCollision)
+                {
+                    Console.WriteLine("self collision");
+                    break;
+                }
+                
+                hasFood = head.Point.Equals(food);
+                if (hasFood)
+                {
+                    refreshMilliseconds = Math.Max(100, refreshMilliseconds - 25);
+                    food = new Point(r.Next(1, 19), r.Next(1, 19));
+                    Console.WriteLine("got food");
+                    snake = snake.Append((tail.Point, snake.Last().d, 
+                        new Queue<(Point, Direction)>(snake.Last().moves))).ToList();
+                }
+            }
+        }
+        
+        Console.WriteLine("game over");
+        Console.WriteLine("Press any key to exit...");
+        Console.ReadKey();
+    }
+}
